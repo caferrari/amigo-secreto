@@ -1,9 +1,8 @@
 const fetchUrl = require("fetch").fetchUrl;
 const _ = require("lodash");
+const sgMail = require('@sendgrid/mail');
 
-var api_key = 'key-xxxxxxxxx';
-var domain = 'mg.mg.mg';
-var mailgun = require('mailgun-js')({apiKey: api_key, domain: domain});
+sgMail.setApiKey('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');
 
 const readFriends = (file) => {
   return new Promise((resolve, reject) => {
@@ -11,6 +10,7 @@ const readFriends = (file) => {
     const converter = new Converter({});
 
     converter.on("end_parsed", function (jsonArray) {
+      jsonArray.forEach(item => item.negados = JSON.parse(item.negados));
       resolve(jsonArray);
     });
 
@@ -105,7 +105,7 @@ const validateList = (result => {
   let valid = true;
 
   result.forEach(couple => {
-    if (couple.from.negados.indexOf(couple.to.id) >= 0) {
+    if (couple.from.negados.indexOf(Number(couple.to.id)) >= 0) {
       console.log(`${couple.from.nome} tirou ${couple.to.nome}`);
       valid = false;
     }
@@ -134,22 +134,15 @@ const sorteio = (friends) => {
 }
 
 const sendEmail = (to, subject, text) => {
-  var data = {
-    from: 'Amigo Secreto <fulano@gmail.com>',
+
+  const msg = {
+    from: 'Amigo Secreto <amigosecreto@gmail.com>',
     to,
     subject,
-    text
+    text,
   };
 
-  return new Promise((resolve, reject) => {
-    mailgun.messages().send(data, function (error, body) {
-      if (!error) {
-        resolve();
-      }
-      reject();
-    });
-  });
-
+  return sgMail.send(msg);
 }
 
 const notifyMaster = (result) => {
@@ -158,7 +151,7 @@ const notifyMaster = (result) => {
     return i.from.nome + '->' + i.to.nome;
   }).join('\n');
 
-  return sendEmail('sabetudo@gmail.com', 'TOP SECRET! -> Amigo Secreto', summary)
+  return sendEmail('evauviedo@gmail.com', 'TOP SECRET! -> Amigo Secreto 2019', summary)
     .then(() => result);
 }
 
@@ -169,7 +162,8 @@ const reportFriend = (list, resolve) => {
   const target = list.splice(0, 1)[0];
   return new Promise((resolve, reject) => {
     console.log('notificando: ' + target.from.nome);
-    sendEmail(target.from.email, 'Confidencial: Seu Amigo Secreto', `Olá ${target.from.nome}, seu amigo secreto é:\n\n\n${target.to.nome}\n\n\nE ele(a) gostaria de:\n\n${target.to.sugestao}`)
+    target.to.sugestao = target.to.sugestao || '-'
+    sendEmail(target.from.email, 'Confidencial: Seu Amigo Secreto 2019', `Olá ${target.from.nome}, seu amigo secreto é:\n\n\n${target.to.nome}\n\n\nE ele(a) gostaria de:\n\n${target.to.sugestao}`)
       .then(() => reportFriend(list, resolve))
       .catch((err) => {
         list.push(target);
@@ -191,4 +185,5 @@ readFriends("./amigos.csv")
   .then(reportAll)
   .then(() => {
     console.log("Todo mundo notificado!, boas festas!");
-  });
+  })
+  .catch(err => console.log(err));
